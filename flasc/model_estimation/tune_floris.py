@@ -21,7 +21,6 @@ import numpy.typing as npt
 import matplotlib.pyplot as plt
 
 from pathlib import Path
-from time import perf_counter as timerpc
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
@@ -36,11 +35,10 @@ from flasc.model_estimation import floris_params_model
 from flasc import floris_tools as ftools
 from flasc.energy_ratio import energy_ratio_suite
 from flasc.dataframe_operations import dataframe_manipulations as dfm
-from flasc.visualization import plot_floris_layout, plot_layout_only, plot_layout_with_waking_directions, plot_binned_mean_and_ci
 
 from floris.tools import FlorisInterface
 from floris.tools import ParallelComputingInterface
-from floris.tools.visualization import visualize_cut_plane, plot_rotor_values
+
 
 class FlorisTuner():
     """
@@ -277,8 +275,9 @@ class FlorisTuner():
                                             verbose=verbose)
 
         # Take mean squared error (mse) of the energy ratios
-        scada_energy_ratios = energy_ratios[0]['er_results'][case]   
-        floris_energy_ratios = energy_ratios[1]['er_results'][case]
+        # TODO: The 'baseline' key for energy ratios is confusing for the 'controlled' case and needs to be updated
+        scada_energy_ratios = energy_ratios[0]['er_results']['baseline']   
+        floris_energy_ratios = energy_ratios[1]['er_results']['baseline']
 
         datapoints_per_wd_bin = energy_ratios[0]['er_results']['bin_count']
 
@@ -426,8 +425,8 @@ class FlorisTuner():
                     case: str,
                     tolerance: float, 
                     pow_ref_columns: list[int],
+                    params: npt.NDArray[np.float64],
                     time_series: bool = True,
-                    mod_rate: int = 0.001,
                     wd_step: float = 3.0,
                     ws_step: float = 5.0,
                     wd_bin_width: float = None,
@@ -438,7 +437,8 @@ class FlorisTuner():
                     balance_bins_between_dfs: bool = True,
                     return_detailed_output: bool = False,
                     num_blocks: int = -1,
-                    verbose: bool = True):
+                    verbose: bool = True
+                    ):
         """
         Tune FLORIS model. 
 
@@ -537,101 +537,16 @@ class FlorisTuner():
                                        pow_ref_columns=pow_ref_columns,
                                        time_series=time_series)
 
-        # Calculate error (mean squared) for SCADA and FLORIS energy ratios
-        err = self.evaluate_error(case=case,
-                                  df_floris=df_floris, 
-                                  wd_step=wd_step,
-                                  ws_step=ws_step,
-                                  wd_bin_width=wd_bin_width,
-                                  wd_bins=wd_bins,
-                                  ws_bins=ws_bins,
-                                  N=N,
-                                  percentiles=percentiles,
-                                  balance_bins_between_dfs=balance_bins_between_dfs,
-                                  return_detailed_output=return_detailed_output,
-                                  num_blocks=num_blocks,
-                                  verbose=verbose)
-        
-        # err, scada_er, floris_er = self.evaluate_error(case=case,
-        #                           df_floris=df_floris, 
-        #                           wd_step=wd_step,
-        #                           ws_step=ws_step,
-        #                           wd_bin_width=wd_bin_width,
-        #                           wd_bins=wd_bins,
-        #                           ws_bins=ws_bins,
-        #                           N=N,
-        #                           percentiles=percentiles,
-        #                           balance_bins_between_dfs=balance_bins_between_dfs,
-        #                           return_detailed_output=return_detailed_output,
-        #                           num_blocks=num_blocks,
-        #                           verbose=verbose)
-        
-        # return err, scada_er, floris_er
-        # While error != tolerance, tune FLORIS parameters
-        # If baseline case, tune horizontal deflection gain
-        
+        # Calculate the mean squared error between SCADA and FLORIS energy ratios for each value in the range of parameters
+        errs = []
 
-        # Plotting Approach
-        # x axis would a parameter (wake recovery array)
-        # sweep the expansion rate (0.01, 0.06)
-        # y axis output of the error
-        # setup the minimize
-        # use a minimzer to get the error down
-
-        iters = 0
+        # If baseline case, tune wake expansion rate(s) 
         if case == 'baseline':
-            while round(err, 3) != tolerance:
-                # Update horizontal deflection gain parameter
-                fi_dict_mod['wake']['wake_deflection_parameters']['empirical_gauss']\
-                ['horizontal_deflection_gain_D'] += mod_rate
-
-                # Instantiate FLORIS model object with updated horizontal deflection gain parameter
-                self.fi_tuned = FlorisInterface(fi_dict_mod)
-
-                # Generate FLORIS dataframe for SCADA comparison
-                df_floris = self.get_floris_df(fi=self.fi_tuned,
-                                               pow_ref_columns=pow_ref_columns,
-                                               time_series=time_series)
-                
-                # Calculate error (mean squared) for SCADA and FLORIS energy ratios
-                err = self.evaluate_error(case=case,
-                                          df_floris=df_floris, 
-                                          wd_step=wd_step,
-                                          ws_step=ws_step,
-                                          wd_bin_width=wd_bin_width,
-                                          wd_bins=wd_bins,
-                                          ws_bins=ws_bins,
-                                          N=N,
-                                          percentiles=percentiles,
-                                          balance_bins_between_dfs=balance_bins_between_dfs,
-                                          return_detailed_output=return_detailed_output,
-                                          num_blocks=num_blocks,
-                                          verbose=verbose)
-                
-                iters += 1
-                print(f'Iteration {iters}')
-                print(f'-------------')
-                print(f'err: {err}')
-                print(f'tol: {tolerance}')
-
-                if round(err, 3) == tolerance:
-                    break
-
-
-        # If controlled case, tune wake expansion rate(s) # TODO: Figure out tuning based on breakpoints
-        elif case == 'controlled':
-            while round(err, 3) != tolerance:
-                # if :
-                #     fi_dict_mod['wake']['wake_velocity_parameters']['empirical_gauss']\
-                #     ['wake_expansion_rates'][0] += mod_rate
-
-                # else :
-                #     fi_dict_mod['wake']['wake_velocity_parameters']['empirical_gauss']\
-                #     ['wake_expansion_rates'][1] += mod_rate
-
+            for i in params:
                 # Update 1st wake expansion rate parameter
+                # TODO: Need to address breakpoints case
                 fi_dict_mod['wake']['wake_velocity_parameters']['empirical_gauss']\
-                ['wake_expansion_rates'][0] += mod_rate
+                ['wake_expansion_rates'][0] += i
 
                 # Instantiate FLORIS model object with updated wake expansion rate parameter
                 self.fi_tuned = FlorisInterface(fi_dict_mod)
@@ -641,7 +556,7 @@ class FlorisTuner():
                                                pow_ref_columns=pow_ref_columns,
                                                time_series=time_series)
                 
-                # Calculate error (mean squared) for SCADA and FLORIS energy ratios
+                # Calculate error
                 err = self.evaluate_error(case=case,
                                           df_floris=df_floris, 
                                           wd_step=wd_step,
@@ -655,20 +570,49 @@ class FlorisTuner():
                                           return_detailed_output=return_detailed_output,
                                           num_blocks=num_blocks,
                                           verbose=verbose)
-                iters += 1
-                print(f'Iteration {iters}')
-                print(f'-------------')
-                print(f'err: {err}')
-                print(f'tol: {tolerance}')
+                
+                # Track error and parameter value
+                errs.append(err)
+                
+        # If controlled case, tune horizontal deflection gain
+        elif case == 'controlled':
+            for i in params:
+                # Update horizontal deflection gain parameter
+                fi_dict_mod['wake']['wake_deflection_parameters']['empirical_gauss']\
+                ['horizontal_deflection_gain_D'] = i
 
-                if round(err, 3) == tolerance:
-                    break
+                # Instantiate FLORIS model object with updated horizontal deflection gain parameter
+                self.fi_tuned = FlorisInterface(fi_dict_mod)
+
+                # Generate FLORIS dataframe for SCADA comparison
+                df_floris = self.get_floris_df(fi=self.fi_tuned,
+                                               pow_ref_columns=pow_ref_columns,
+                                               time_series=time_series)
+                
+                # Calculate error
+                err = self.evaluate_error(case=case,
+                                          df_floris=df_floris, 
+                                          wd_step=wd_step,
+                                          ws_step=ws_step,
+                                          wd_bin_width=wd_bin_width,
+                                          wd_bins=wd_bins,
+                                          ws_bins=ws_bins,
+                                          N=N,
+                                          percentiles=percentiles,
+                                          balance_bins_between_dfs=balance_bins_between_dfs,
+                                          return_detailed_output=return_detailed_output,
+                                          num_blocks=num_blocks,
+                                          verbose=verbose)
+                
+                # Track error
+                errs.append(err)
 
         else:
             raise ValueError("Can only evaluate the 'baseline' or 'controlled' case.")
         
         # Return tuned FLORIS model and associated error
-        return self.fi_tuned, err
+        # return self.fi_tuned, err
+        return errs
 
     def write_yaml(self, filepath: str):
         """
@@ -680,20 +624,23 @@ class FlorisTuner():
         """
 
         # Check if file already exists
+        if os.path.isfile(filepath):
+             print(f'FLORIS YAML file {filepath} exists. Skipping...')
 
+        # If it does not exist, write a new YAML file for tuned FLORIS parameters
+        else:         
+             fi_dict = self.fi_tuned.floris.as_dict()
 
-        # Write new yaml file for tuned FLORIS parameters
-        fi_dict = self.fi_tuned.floris.as_dict()
-
-        # Save filepath for future reference
-        self.yaml = filepath
-
-        print(f'Writing new FLORIS YAML file to `{filepath}`...')
-
-        with open(filepath, 'w') as f:
-            yaml.dump(fi_dict, f)
-
-        print('FLORIS YAML file completed.')
+             # Save the file path for future reference
+             self.yaml = filepath
+             
+             print(f'Writing new FLORIS YAML file to `{filepath}`...')
+             
+             # Wrtie the YAML file
+             with open(filepath, 'w') as f:
+                yaml.dump(fi_dict, f)
+                
+             print('Finished writing FLORIS YAML file.')
 
     def get_untuned_floris(self):
         """
@@ -703,6 +650,7 @@ class FlorisTuner():
             fi_untuned (:py:obj:`FlorisInterface`): Untuned FLORIS model.
         
         """
+
         return self.fi_untuned
 
     def get_tuned_floris(self):
@@ -713,6 +661,7 @@ class FlorisTuner():
             fi_tuned (:py:obj:`FlorisInterface`): Tuned FLORIS model.
 
         """
+
         return self.fi_tuned
 
     def get_yaml(self):
@@ -723,6 +672,7 @@ class FlorisTuner():
             yaml (:py:obj:`str`): Directory of YAML file.
 
         """
+
         return self.yaml
 
     
