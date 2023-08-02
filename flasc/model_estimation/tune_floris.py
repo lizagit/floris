@@ -50,7 +50,7 @@ class FlorisTuner():
 
         num_turbines (:py:obj:`int`): Number of turbines in the wind farm.
 
-        test_turbine (:py:obj:`int`): Index of test turbine.
+        test_turbines (:py:obj:`int`): Index of test turbines.
 
         steered_turbine (:py:obj:`int`): Index of wake steered turbine. # TODO: Check if there should be an option for steering multiple turbines
 
@@ -64,7 +64,7 @@ class FlorisTuner():
                  fi: FlorisInterface,
                  df_scada: pd.DataFrame, 
                  num_turbines: int, 
-                 test_turbine: int, 
+                 test_turbines: int, 
                  steered_turbine: int = None, 
                  yaw: list[float] = None, 
                  breakpoints_D: float = None):
@@ -77,7 +77,7 @@ class FlorisTuner():
 
         self.num_turbines = num_turbines
         
-        self.test_turbine = test_turbine
+        self.test_turbines = test_turbines
 
         self.steered_turbine = steered_turbine
   
@@ -87,7 +87,10 @@ class FlorisTuner():
   
         self.yaml = '' # initialize for later yaml file writing
 
-    def get_floris_df(self, fi: FlorisInterface, pow_ref_columns: list[int], time_series: bool = True) -> pd.DataFrame:
+    def get_floris_df(self, 
+                      fi: FlorisInterface, 
+                      pow_ref_columns: list[int], 
+                      time_series: bool = True) -> pd.DataFrame:
         """
         Generate dataframe for FLORIS predictions for comparison with SCADA.
 
@@ -116,7 +119,7 @@ class FlorisTuner():
             if time_series:
                 yaw_angles = np.zeros([len(wind_directions),1,self.num_turbines])
                 yaw_angles[:,0, self.steered_turbine] = self.yaw
-            
+
                 fi_.reinitialize(wind_speeds=wind_speeds, 
                                 wind_directions=wind_directions,
                                 time_series=time_series)
@@ -125,7 +128,7 @@ class FlorisTuner():
             # If time series is set to False, set the wind speed dimension to the number of wind speeds
             else:
                 yaw_angles = np.zeros([len(wind_directions),len(wind_speeds),self.num_turbines])
-                yaw_angles[:,0, self.steered_turbine_idx] = self.yaw
+                yaw_angles[:,0, self.steered_turbine] = self.yaw
             
                 fi_.reinitialize(wind_speeds=wind_speeds, 
                                 wind_directions=wind_directions,
@@ -261,7 +264,7 @@ class FlorisTuner():
         s.add_df(self.df_scada, name=f"SCADA ({case})", color='b')
         s.add_df(df_floris, name=f"FLORIS ({case})", color='r')
 
-        energy_ratios = s.get_energy_ratios(test_turbines=self.test_turbine,
+        energy_ratios = s.get_energy_ratios(test_turbines=self.test_turbines,
                                             wd_step=wd_step,
                                             ws_step=ws_step,
                                             wd_bin_width=wd_bin_width,
@@ -404,7 +407,7 @@ class FlorisTuner():
         s.add_df(df_floris_untuned, name=f"Untuned FLORIS ({case})", color='r')
         s.add_df(df_floris_tuned, name=f"Tuned FLORIS ({case})", color='g')
 
-        s.get_energy_ratios(test_turbines=self.test_turbine,
+        s.get_energy_ratios(test_turbines=self.test_turbines,
                                           wd_step=wd_step,
                                           ws_step=ws_step,
                                           wd_bin_width=wd_bin_width,
