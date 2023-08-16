@@ -11,11 +11,11 @@ FLASC provides a **rich suite of analysis tools** for SCADA data filtering, anal
 wind farm model validation, field experiment design, and field experiment monitoring. 
 
 The repository is centrally built around NRELs in-house ``FLORIS`` wind farm model, available at
-https://github.com/nrel/floris. FLASC also largely relies on the ``energy ratio``, among others, 
+**https://github.com/nrel/floris**. FLASC also largely relies on the ``energy ratio``, among others, 
 to quantify wake losses in synthetic and historical data, to perform turbine northing calibrations, 
 and model parameter estimation.
 
-For technical questions or concerns, please email paul.fleming@nrel.gov.
+For technical questions or concerns, please email **paul.fleming@nrel.gov**.
 
 .. image:: https://readthedocs.org/projects/flasc/badge/?version=main
    :target: http://flasc.readthedocs.io/
@@ -74,7 +74,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-   http://www.apache.org/licenses/LICENSE-2.0
+   **http://www.apache.org/licenses/LICENSE-2.0**
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
