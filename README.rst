@@ -15,7 +15,7 @@ The repository is centrally built around NRELs in-house ``FLORIS`` wind farm mod
 to quantify wake losses in synthetic and historical data, to perform turbine northing calibrations, 
 and model parameter estimation.
 
-For technical questions or concerns, please email **paul.fleming@nrel.gov**.
+For technical questions or concerns, please email paul.fleming@nrel.gov.
 
 .. image:: https://readthedocs.org/projects/flasc/badge/?version=main
    :target: http://flasc.readthedocs.io/
