@@ -30,7 +30,7 @@ from flasc.energy_ratio.energy_ratio_suite import energy_ratio_suite
 
 class FlorisTuner():
     """
-    Given a FLORIS model, FlorisTuner provides a suite of methods for tuning said model,
+    Given a FLORIS model, FlorisTuner provides a suite of functions for tuning said model,
     extracting the updated parameters and writing those parameters to a YAML file. 
 
     Args:
@@ -95,9 +95,6 @@ class FlorisTuner():
             df_floris (:py:obj:`pd.DataFrame`): FLORIS predictions to be compared with SCADA.
 
         """
-    
-        # Copy FLORIS model
-        fi_ = copy.deepcopy(fi)
 
         # Get wind speeds and directions from SCADA
         wind_speeds = self.df_scada['ws']
@@ -110,38 +107,38 @@ class FlorisTuner():
                 yaw_angles = np.zeros([len(wind_directions),1,self.num_turbines])
                 yaw_angles[:,0, self.steered_turbine] = self.yaw
 
-                fi_.reinitialize(wind_speeds=wind_speeds, 
+                fi.reinitialize(wind_speeds=wind_speeds, 
                                 wind_directions=wind_directions,
                                 time_series=time_series)
 
-                fi_.calculate_wake(yaw_angles=yaw_angles)
+                fi.calculate_wake(yaw_angles=yaw_angles)
 
             # If time series is set to False, set the wind speed dimension to the number of wind speeds
             else:
                 yaw_angles = np.zeros([len(wind_directions),len(wind_speeds),self.num_turbines])
                 yaw_angles[:,0, self.steered_turbine] = self.yaw
             
-                fi_.reinitialize(wind_speeds=wind_speeds, 
+                fi.reinitialize(wind_speeds=wind_speeds, 
                                 wind_directions=wind_directions,
                                 time_series=time_series)
 
-                fi_.calculate_wake(yaw_angles=yaw_angles)
+                fi.calculate_wake(yaw_angles=yaw_angles)
 
         # If baseline (non-wake steering) case, skip yaw angles in the wake calculation
         else:
-            fi_.reinitialize(wind_speeds=wind_speeds, 
+            fi.reinitialize(wind_speeds=wind_speeds, 
                              wind_directions=wind_directions,
                              time_series=time_series)
             
-            fi_.calculate_wake()
+            fi.calculate_wake()
 
         # Normalize turbine powers
-        turbine_powers = fi_.get_turbine_powers().squeeze()/1000.
+        turbine_powers = fi.get_turbine_powers().squeeze()/1000.
 
         # Generate FLORIS dataframe
         df_floris = pd.DataFrame(data=turbine_powers,
-                                 columns=[f"pow_{str(i).zfill(3)}" for i in range(self.num_turbines)])
-        
+                                 columns=[f'pow_{i:>03}' for i in range(self.num_turbines)])
+
         df_floris = df_floris.assign(ws=wind_speeds,
                                      wd=wind_directions,
                                      pow_ref=df_floris[[f"pow_{str(i).zfill(3)}" for i in pow_ref_columns]].mean(axis=1))
@@ -442,7 +439,7 @@ class FlorisTuner():
                                           verbose=verbose)
                 
                 # Track error
-                true_errs.append(err)
+                true_errs.append(err) # TODO: Consider options for supplying a custom error function, weighting/filtering error points used in the error curve interpolation, options for using raw power vs. energy ratios
 
         # Raise an error if an invalid case is provided
         else:
@@ -482,15 +479,6 @@ class FlorisTuner():
             err_plot_title = f'Error for {case.capitalize()} Case ({param_name} = Range({param_values[0]}, {param_values[-1]}))'
             err_plot_xlabel = param_name
             err_plot_ylabel = 'Error'
-
-            # if case == 'baseline':
-            #     err_plot_title = f'Error for Baseline Case (Wake Expansion Rate = Range({param_values[0]}, {param_values[-1]}))'
-            #     err_plot_xlabel = 'Wake Expansion Rate'
-            #     err_plot_ylabel = 'Error'
-            # else:
-            #     err_plot_title = f'Error for Controlled Case (Horizontal Deflection Gain D = Range({param_values[0]}, {param_values[-1]}))'
-            #     err_plot_xlabel = 'Horizontal Deflection Gain D'
-            #     err_plot_ylabel = 'Error'
         
             predicted_errs = err_curve(param_values)
 
@@ -506,7 +494,7 @@ class FlorisTuner():
         # If 'plot_energy_ratios' is True, plot the energy ratios for SCADA and FLORIS
         if plot_energy_ratios:
             # Specify title
-            energy_ratios_plot_title =f'Turbine ' + ', '.join([f'{t:>03}' for t in self.test_turbines])
+            energy_ratios_plot_title =f'Turbine ' + ', '.join([f'{t:>03}' for t in self.test_turbines]) + ' Energy Ratios'
 
             # Generate dataframe for tuned FLORIS model
             df_floris = self.get_floris_df(fi=self.fi_tuned,
